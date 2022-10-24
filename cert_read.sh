@@ -45,10 +45,12 @@ url=$(echo $url | sed -e 's/https*:\/\///' -e 's/\/*$//g')
 
 # Read cert without processing output, if requested
 if [[ $full -eq 1 ]]; then
+    echo "Requested URL: "$url
     : | openssl s_client -connect $url:443 | openssl x509 -in /dev/stdin -text -noout
     exit
 fi
 if [[ $fullWCert -eq 1 ]]; then
+    echo "Requested URL: "$url
     : | openssl s_client -connect $url:443 | openssl x509 -in /dev/stdin -text
     exit
 fi
@@ -60,9 +62,26 @@ fi
 # Read cert processing output
 opensslOut=$(: | openssl s_client -connect $url:443 2>/dev/null | openssl x509 -in /dev/stdin -issuer -subject -dates -fingerprint -noout) # -purpose -serial
 
-# Print the obtained output with some changes:
+# Process the obtained output:
 #  - Change some of the field names (i.e notBefore and notAfter with ValidFrom and ValidUntil respectively)
 #  - Ignore purposes set to 'No'
-echo "Requested URL: "$url
-echo "$opensslOut" | sed -e 's/notBefore=/Valid From: /' -e 's/notAfter=/Valid Until: /' -e 's/issuer=/Issued By: /' -e 's/subject=/Issued To: /'  -e 's/SHA1 Fingerprint=/Fingerprint (SHA1): /' | grep -v No
+opensslOut=$(echo "$opensslOut" | sed -e 's/notBefore=/Valid From: /' -e 's/notAfter=/Valid Until: /' -e 's/issuer=/Issued By: /' -e 's/subject=/Issued To: /'  -e 's/SHA1 Fingerprint=/Fingerprint (SHA1): /' | grep -v No)
 
+# If json was requested, process as needed and print
+if [[ $json -eq 1 ]]; then
+  #opensslOut=${opensslOut/Issued By: /\{\"Issued By\":\"}
+  opensslOut="{\"RequestedURL\": \"$url\" $opensslOut"
+  opensslOut=${opensslOut/Issued By: /,\"IssuedBy\":\"}
+  opensslOut=${opensslOut/Issued To: /\",\"IssuedTo\":\"}
+  opensslOut=${opensslOut/Valid From: /\",\"ValidFrom\":\"}
+  opensslOut=${opensslOut/Valid Until: /\",\"ValidUntil\":\"}
+  opensslOut=${opensslOut/Valid Until: /\",\"ValidUntil\":\"}
+  opensslOut=${opensslOut/Fingerprint (SHA1): /\",\"FingerprintSHA1\":\"}
+  opensslOut=$opensslOut"\"}"
+  echo $opensslOut
+  exit
+fi
+
+# Json was not requested
+echo "Requested URL: "$url
+echo "$opensslOut"

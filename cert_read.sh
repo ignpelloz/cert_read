@@ -60,12 +60,12 @@ if [[ $onlyCert -eq 1 ]]; then
 fi
 
 # Read cert processing output
-opensslOut=$(: | openssl s_client -connect $url:443 2>/dev/null | openssl x509 -in /dev/stdin -issuer -subject -dates -fingerprint -noout) # -purpose -serial
+opensslOut=$(: | openssl s_client -connect $url:443 2>/dev/null | openssl x509 -in /dev/stdin -issuer -subject -dates -fingerprint -sha256 -noout) # -purpose -serial
 
 # Process the obtained output:
 #  - Change some of the field names (i.e notBefore and notAfter with ValidFrom and ValidUntil respectively)
 #  - Ignore purposes set to 'No'
-opensslOut=$(echo "$opensslOut" | sed -e 's/notBefore=/Valid From: /' -e 's/notAfter=/Valid Until: /' -e 's/issuer=/Issued By: /' -e 's/subject=/Issued To: /'  -e 's/SHA1 Fingerprint=/Fingerprint (SHA1): /' | grep -v No)
+opensslOut=$(echo "$opensslOut" | sed -e 's/notBefore=/Valid From: /' -e 's/notAfter=/Valid Until: /' -e 's/issuer=/Issued By: /' -e 's/subject=/Issued To: /'  -e 's/sha256 Fingerprint=/Fingerprint (SHA256): /' | grep -v No)
 
 # If json was requested, process as needed and print
 if [[ $json -eq 1 ]]; then
@@ -76,7 +76,7 @@ if [[ $json -eq 1 ]]; then
   opensslOut=${opensslOut/Valid From: /\",\"ValidFrom\":\"}
   opensslOut=${opensslOut/Valid Until: /\",\"ValidUntil\":\"}
   opensslOut=${opensslOut/Valid Until: /\",\"ValidUntil\":\"}
-  opensslOut=${opensslOut/Fingerprint (SHA1): /\",\"FingerprintSHA1\":\"}
+  opensslOut=${opensslOut/Fingerprint (SHA256): /\",\"FingerprintSHA256\":\"}
   opensslOut=$opensslOut"\"}"
   echo $opensslOut
   exit
